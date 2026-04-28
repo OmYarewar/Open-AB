@@ -49,9 +49,9 @@ def evaluate_worker(worker: Worker) -> bool:
     status_file = os.path.join(worker.workspace_dir, "status.txt")
 
     if not os.path.exists(status_file):
-        # Give it a grace period to create the file
+        # Initial reply rule: if no reply under 5 min, kill
         if time.time() - worker.start_time > 300: # 5 mins
-            print(f"[Chef] Worker {worker.id} hasn't written status in 5 mins. Killing.")
+            print(f"[Chef] Worker {worker.id} hasn't replied in 5 mins. Killing.")
             return True
         return False
 
@@ -73,8 +73,8 @@ def evaluate_worker(worker: Worker) -> bool:
 
         # Check last modification time
         mtime = os.path.getmtime(status_file)
-        if time.time() - mtime > 600: # 10 minutes without update
-            print(f"[Chef] Worker {worker.id} hasn't updated status in 10 mins. Killing.")
+        if time.time() - mtime > 900: # 15 minutes without update
+            print(f"[Chef] Worker {worker.id} idle for 15 mins. Killing.")
             return True
 
         return False

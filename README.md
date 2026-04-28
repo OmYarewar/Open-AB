@@ -23,6 +23,9 @@ cd automaton
 
 # 2. Install Dependencies
 pip install -r requirements.txt
+
+# 3. Install Playwright Browsers
+playwright install --with-deps chromium
 ```
 
 ## Setup & Execution

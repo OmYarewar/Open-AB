@@ -9,18 +9,106 @@ from typing import List, Dict, Any
 from shared_skills.bash_exec import run_bash_command
 from shared_skills.web_search import search_web, fetch_url
 from shared_skills.eth_transfer import transfer_eth
+from shared_skills.browser_tool import browser_action
 
 # List of allowed NIM models
 MODELS = [
+    "deepseek-ai/deepseek-r1",
+    "deepseek-ai/deepseek-v3.1-terminus",
+    "deepseek-ai/deepseek-v3.2",
     "deepseek-ai/deepseek-v4-flash",
     "deepseek-ai/deepseek-v4-pro",
-    "z-ai/glm-5.1",
-    "z-ai/glm-4.7",
-    "minimaxai/minimax-m2.7",
-    "google/gemma-4-31b-it",
+    "meta/llama2-70b",
+    "meta/llama3-8b",
+    "meta/llama3-70b",
+    "meta/llama-3.1-8b-instruct",
+    "meta/llama-3.1-70b-instruct",
+    "meta/llama-3.1-405b-instruct",
+    "meta/llama-3.2-1b-instruct",
+    "meta/llama-3.2-3b-instruct",
+    "meta/llama-3.3-70b-instruct",
+    "meta/codellama-70b",
+    "mistralai/mistral-7b-instruct",
+    "mistralai/mistral-7b-instruct-v0.3",
+    "mistralai/mistral-large",
+    "mistralai/mistral-large-2-instruct",
+    "mistralai/mistral-nemotron",
+    "mistralai/mistral-small-24b-instruct",
     "mistralai/mistral-small-4-119b-2603",
+    "mistralai/codestral-22b-instruct-v0.1",
+    "mistralai/devstral-2-123b-instruct-2512",
+    "mistralai/magistral-small-2506",
+    "mistralai/mixtral-8x7b-instruct",
+    "mistralai/mixtral-8x22b-instruct",
+    "mistralai/mamba-codestral-7b-v0.1",
+    "nvidia/nemotron-mini-4b-instruct",
+    "nvidia/nvidia-nemotron-nano-9b-v2",
+    "nvidia/nemotron-3-nano-30b-a3b",
     "nvidia/nemotron-3-super-120b-a12b",
-    "qwen/qwen3.5-122b-a10b"
+    "nvidia/llama-3.1-nemotron-nano-4b-v1_1",
+    "nvidia/llama-3.1-nemotron-nano-8b-v1",
+    "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+    "nvidia/llama-3.3-nemotron-super-49b-v1",
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+    "nvidia/nemotron-4-mini-hindi-4b-instruct",
+    "nvidia/mistral-nemo-minitron-8b-base",
+    "nvidia/nemotron-content-safety-reasoning-4b",
+    "nvidia/riva-translate-4b-instruct-v1_1",
+    "nvidia/usdcode",
+    "qwen/qwen2-7b-instruct",
+    "qwen/qwen2.5-7b-instruct",
+    "qwen/qwen2.5-coder-7b-instruct",
+    "qwen/qwen2.5-coder-32b-instruct",
+    "qwen/qwq-32b",
+    "qwen/qwen3-next-80b-a3b-instruct",
+    "qwen/qwen3-next-80b-a3b-thinking",
+    "qwen/qwen3-coder-480b-a35b-instruct",
+    "qwen/qwen3-5-122b-a10b",
+    "qwen/qwen3.5-397b-a17b",
+    "microsoft/phi-3-mini-128k-instruct",
+    "microsoft/phi-3-mini-4k-instruct",
+    "microsoft/phi-3-small-128k-instruct",
+    "microsoft/phi-3-small-8k-instruct",
+    "microsoft/phi-3-medium-128k-instruct",
+    "microsoft/phi-3-medium-4k-instruct",
+    "microsoft/phi-3.5-mini",
+    "microsoft/phi-4-mini-instruct",
+    "microsoft/phi-4-mini-flash-reasoning",
+    "google/gemma-2b",
+    "google/gemma-7b",
+    "google/gemma-2-2b-it",
+    "google/gemma-2-9b-it",
+    "google/gemma-2-27b-it",
+    "google/codegemma-7b",
+    "moonshotai/kimi-k2-instruct",
+    "moonshotai/kimi-k2-instruct-0905",
+    "moonshotai/kimi-k2-thinking",
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
+    "z-ai/glm-4.7",
+    "z-ai/glm-5.1",
+    "minimaxai/minimax-m2.5",
+    "minimaxai/minimax-m2.7",
+    "bytedance/seed-oss-36b-instruct",
+    "stepfun-ai/step-3-5-flash",
+    "marin/marin-8b-instruct",
+    "abacusai/dracarys-llama-3.1-70b-instruct",
+    "databricks/dbrx-instruct",
+    "snowflake/arctic",
+    "upstage/solar-10.7b-instruct",
+    "ibm/granite-34b-code-instruct",
+    "ibm/granite-8b-code-instruct",
+    "aisingapore/sea-lion-7b-instruct",
+    "sarvamai/sarvam-m",
+    "opengpt-x/teuken-7b-instruct-commercial-v0.4",
+    "stockmark/stockmark-2-100b-instruct",
+    "rakuten/rakutenai-7b-chat",
+    "rakuten/rakutenai-7b-instruct",
+    "mediatek/breeze-7b-instruct",
+    "bigcode/starcoder2-7b",
+    "bigcode/starcoder2-15b",
+    "seallms/seallm-7b-v2.5",
+    "01-ai/yi-large"
 ]
 
 def load_system_prompt(workspace_dir: str) -> str:
@@ -34,6 +122,7 @@ Available tools:
 - fetch_url(url): get content of a URL.
 - transfer_eth(to_address, amount): send ETH to a wallet.
 - log_status(message): Log your progress, idea, and earnings so the Chef AI can review it.
+- browser_action(action, url, selector, text): Control a headless browser to perform tasks on the web without paid APIs (e.g. creating accounts). Actions: goto, click, type, extract.
 
 You run in a continuous ReAct loop. Always reason about what you are doing, emit a tool call, wait for the result, and iterate.
 If your idea isn't working, try a new one. The Chef AI is monitoring you and will terminate you if you waste resources without results.
@@ -111,6 +200,23 @@ def get_tools():
                     "required": ["message"]
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "browser_action",
+                "description": "Control a headless browser to perform tasks on the web without paid APIs (e.g. creating accounts). Actions: goto, click, type, extract.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "enum": ["goto", "click", "type", "extract"]},
+                        "url": {"type": "string", "description": "The URL to navigate to"},
+                        "selector": {"type": "string", "description": "CSS selector for click/type/extract"},
+                        "text": {"type": "string", "description": "Text to type if action is 'type'"}
+                    },
+                    "required": ["action"]
+                }
+            }
         }
     ]
 
@@ -173,6 +279,13 @@ def main():
                         with open(status_file, "a") as f:
                             f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {args['message']}\n")
                         result = "Status logged."
+                    elif function_name == "browser_action":
+                        result = browser_action(
+                            args.get("action"),
+                            args.get("url"),
+                            args.get("selector"),
+                            args.get("text")
+                        )
                     else:
                         result = f"Unknown function: {function_name}"
 
