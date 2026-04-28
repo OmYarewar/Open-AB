@@ -4,12 +4,15 @@ import time
 import uuid
 import shutil
 import subprocess
+import json
 
 from typing import Dict, Any
 
 NUM_WORKERS = 3  # Start with 3 concurrent workers
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 WORKSPACES_DIR = os.path.join(BASE_DIR, "workspaces")
+SYSTEM_STATE_FILE = os.path.join(BASE_DIR, "system_state.json")
+PENDING_KILLS_FILE = os.path.join(BASE_DIR, "pending_kills.json")
 
 # Provide the 2 API keys for the workers to use
 API_KEYS = [
@@ -36,13 +39,65 @@ def spawn_worker(worker_id: str, api_key: str) -> Worker:
     process = subprocess.Popen(
         [sys.executable, os.path.join(BASE_DIR, "worker.py"), workspace_dir, worker_id],
         env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         text=True
     )
 
     print(f"[Chef] Spawned worker {worker_id} in {workspace_dir}")
     return Worker(id=worker_id, process=process, workspace_dir=workspace_dir, start_time=time.time())
+
+
+def write_system_state(workers: Dict[str, Worker]):
+    state = {
+        "status": "RUNNING",
+        "timestamp": time.time(),
+        "workers": []
+    }
+    for w_id, w in workers.items():
+        status_file = os.path.join(w.workspace_dir, "status.txt")
+        last_log = ""
+        if os.path.exists(status_file):
+            try:
+                with open(status_file, "r") as f:
+                    lines = f.readlines()
+                    if lines: last_log = lines[-1].strip()
+            except: pass
+
+        state["workers"].append({
+            "id": w_id,
+            "uptime": time.time() - w.start_time,
+            "workspace": w.workspace_dir,
+            "last_log": last_log
+        })
+    with open(SYSTEM_STATE_FILE, "w") as f:
+        json.dump(state, f, indent=4)
+
+def read_pending_kills() -> Dict:
+    if os.path.exists(PENDING_KILLS_FILE):
+        try:
+            with open(PENDING_KILLS_FILE, "r") as f:
+                return json.load(f)
+        except: pass
+    return {}
+
+def write_pending_kills(pending: Dict):
+    with open(PENDING_KILLS_FILE, "w") as f:
+        json.dump(pending, f, indent=4)
+
+def process_approved_kills(workers: Dict[str, Worker]) -> list:
+    pending = read_pending_kills()
+    to_remove = []
+    for w_id, status in list(pending.items()):
+        if status == "APPROVED":
+            if w_id in workers:
+                cleanup_worker(workers[w_id])
+                to_remove.append(w_id)
+            del pending[w_id]
+        elif status == "REJECTED":
+            del pending[w_id]
+    write_pending_kills(pending)
+    return to_remove
 
 def evaluate_worker(worker: Worker) -> bool:
     """Evaluate if a worker should be killed. Returns True if worker is underperforming."""
@@ -115,20 +170,35 @@ def main():
 
     try:
         while True:
+            manual_kill = os.environ.get("MANUAL_KILL_CONFIRM", "False").lower() == "true"
+            write_system_state(workers)
+
             # Check on workers
             to_remove = []
+            pending = read_pending_kills()
+
             for w_id, worker in workers.items():
                 # Check if process died on its own
                 if worker.process.poll() is not None:
                     print(f"[Chef] Worker {w_id} died unexpectedly with code {worker.process.returncode}.")
                     to_remove.append(w_id)
+                    if w_id in pending: del pending[w_id]
                     continue
 
                 # Evaluate performance
                 if evaluate_worker(worker):
-                    cleanup_worker(worker)
-                    to_remove.append(w_id)
+                    if manual_kill:
+                        if w_id not in pending:
+                            print(f"[Chef] Flagged worker {w_id} for manual kill confirmation.")
+                            pending[w_id] = "PENDING"
+                    else:
+                        cleanup_worker(worker)
+                        to_remove.append(w_id)
 
+            write_pending_kills(pending)
+
+            if manual_kill:
+                to_remove.extend(process_approved_kills(workers))
             # Remove and respawn
             for w_id in to_remove:
                 del workers[w_id]
