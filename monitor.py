@@ -44,7 +44,7 @@ def spawn_worker(worker_id: str, api_key: str) -> Worker:
         text=True
     )
 
-    print(f"[Chef] Spawned worker {worker_id} in {workspace_dir}")
+    print(f"[Monitor] Spawned worker {worker_id} in {workspace_dir}")
     return Worker(id=worker_id, process=process, workspace_dir=workspace_dir, start_time=time.time())
 
 
@@ -106,7 +106,7 @@ def evaluate_worker(worker: Worker) -> bool:
     if not os.path.exists(status_file):
         # Initial reply rule: if no reply under 5 min, kill
         if time.time() - worker.start_time > 300: # 5 mins
-            print(f"[Chef] Worker {worker.id} hasn't replied in 5 mins. Killing.")
+            print(f"[Monitor] Worker {worker.id} hasn't replied in 5 mins. Killing.")
             return True
         return False
 
@@ -116,25 +116,25 @@ def evaluate_worker(worker: Worker) -> bool:
 
         if not lines:
             if time.time() - worker.start_time > 300:
-                print(f"[Chef] Worker {worker.id} status file is empty after 5 mins. Killing.")
+                print(f"[Monitor] Worker {worker.id} status file is empty after 5 mins. Killing.")
                 return True
             return False
 
         # Basic heuristic: if it says "failed", "stuck", or hasn't updated recently
         last_line = lines[-1].lower()
         if "stuck" in last_line or "error" in last_line:
-            print(f"[Chef] Worker {worker.id} seems stuck based on status: {last_line.strip()}. Killing.")
+            print(f"[Monitor] Worker {worker.id} seems stuck based on status: {last_line.strip()}. Killing.")
             return True
 
         # Check last modification time
         mtime = os.path.getmtime(status_file)
         if time.time() - mtime > 900: # 15 minutes without update
-            print(f"[Chef] Worker {worker.id} idle for 15 mins. Killing.")
+            print(f"[Monitor] Worker {worker.id} idle for 15 mins. Killing.")
             return True
 
         return False
     except Exception as e:
-        print(f"[Chef] Error evaluating worker {worker.id}: {e}")
+        print(f"[Monitor] Error evaluating worker {worker.id}: {e}")
         return False
 
 def cleanup_worker(worker: Worker):
@@ -144,19 +144,19 @@ def cleanup_worker(worker: Worker):
     except subprocess.TimeoutExpired:
         worker.process.kill()
 
-    print(f"[Chef] Cleaned up worker process {worker.id}")
+    print(f"[Monitor] Cleaned up worker process {worker.id}")
 
     # Optionally remove workspace to start fresh
     try:
         shutil.rmtree(worker.workspace_dir)
     except Exception as e:
-        print(f"[Chef] Error removing workspace for {worker.id}: {e}")
+        print(f"[Monitor] Error removing workspace for {worker.id}: {e}")
 
 def main():
-    print("[Chef] Starting Autonomous Worker Management System...")
+    print("[Monitor] Starting Monitor AI Management System...")
 
     if not API_KEYS[0] and not API_KEYS[1]:
-        print("[Chef] Warning: No NVIDIA_API_KEY_1 or NVIDIA_API_KEY_2 found in environment.")
+        print("[Monitor] Warning: No NVIDIA_API_KEY_1 or NVIDIA_API_KEY_2 found in environment.")
         # Proceed anyway for testing, but API calls will fail.
 
     workers: Dict[str, Worker] = {}
@@ -180,7 +180,7 @@ def main():
             for w_id, worker in workers.items():
                 # Check if process died on its own
                 if worker.process.poll() is not None:
-                    print(f"[Chef] Worker {w_id} died unexpectedly with code {worker.process.returncode}.")
+                    print(f"[Monitor] Worker {w_id} died unexpectedly with code {worker.process.returncode}.")
                     to_remove.append(w_id)
                     if w_id in pending: del pending[w_id]
                     continue
@@ -189,7 +189,7 @@ def main():
                 if evaluate_worker(worker):
                     if manual_kill:
                         if w_id not in pending:
-                            print(f"[Chef] Flagged worker {w_id} for manual kill confirmation.")
+                            print(f"[Monitor] Flagged worker {w_id} for manual kill confirmation.")
                             pending[w_id] = "PENDING"
                     else:
                         cleanup_worker(worker)
@@ -209,7 +209,7 @@ def main():
             time.sleep(30) # Wait before next evaluation loop
 
     except KeyboardInterrupt:
-        print("[Chef] Shutting down. Cleaning up workers...")
+        print("[Monitor] Shutting down. Cleaning up workers...")
         for worker in workers.values():
             cleanup_worker(worker)
 

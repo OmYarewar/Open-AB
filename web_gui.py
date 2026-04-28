@@ -47,7 +47,7 @@ HTML_TEMPLATE = """
         .chat-box { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; border-radius: 4px; margin-bottom: 10px; }
         .chat-msg { margin-bottom: 10px; }
         .chat-user { color: #2980b9; font-weight: bold; }
-        .chat-chef { color: #27ae60; font-weight: bold; }
+        .chat-monitor { color: #27ae60; font-weight: bold; }
     </style>
     <script>
         // Auto-refresh Dashboard every 5 seconds
@@ -62,7 +62,7 @@ HTML_TEMPLATE = """
         <div class="nav-links">
             <a href="/" class="{{ 'active' if tab == 'dashboard' else '' }}">Dashboard</a>
             <a href="/config" class="{{ 'active' if tab == 'config' else '' }}">Configuration</a>
-            <a href="/chat" class="{{ 'active' if tab == 'chat' else '' }}">Chef Chat</a>
+            <a href="/chat" class="{{ 'active' if tab == 'chat' else '' }}">Monitor Chat</a>
         </div>
     </div>
 
@@ -135,7 +135,7 @@ HTML_TEMPLATE = """
                     </div>
                     <div class="form-group" style="display: flex; align-items: center; margin-top: 20px;">
                         <input type="checkbox" name="MANUAL_KILL_CONFIRM" value="True" {{ 'checked' if config.get('MANUAL_KILL_CONFIRM') == 'True' else '' }}>
-                        <label style="margin: 0;">Require manual confirmation before Chef kills a worker</label>
+                        <label style="margin: 0;">Require manual confirmation before Monitor kills a worker</label>
                     </div>
                     <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Save Configuration</button>
                 </form>
@@ -146,10 +146,10 @@ HTML_TEMPLATE = """
                 <h2>Chat with Chef AI</h2>
                 <p>Discuss system strategy, view agent logic, or manually command the orchestrator.</p>
                 <div class="chat-box" id="chatbox">
-                    <div class="chat-msg"><span class="chat-chef">Chef AI:</span> Hello! I am managing your workers. How can I assist you today?</div>
+                    <div class="chat-msg"><span class="chat-monitor">Monitor AI:</span> Hello! I am managing your workers. How can I assist you today?</div>
                 </div>
                 <div style="display: flex;">
-                    <input type="text" id="chat-input" placeholder="Ask the Chef..." style="flex-grow: 1; margin-right: 10px;" onkeypress="if(event.key === 'Enter') sendChat()">
+                    <input type="text" id="chat-input" placeholder="Ask the Monitor..." style="flex-grow: 1; margin-right: 10px;" onkeypress="if(event.key === 'Enter') sendChat()">
                     <button class="btn btn-primary" onclick="sendChat()">Send</button>
                 </div>
                 <script>
@@ -177,7 +177,7 @@ HTML_TEMPLATE = """
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({message: msg})
                         }).then(res => res.json()).then(data => {
-                            chatbox.innerHTML += `<div class="chat-msg"><span class="chat-chef">Chef AI:</span> ${escapeHtml(data.reply)}</div>`;
+                            chatbox.innerHTML += `<div class="chat-msg"><span class="chat-monitor">Monitor AI:</span> ${escapeHtml(data.reply)}</div>`;
                             chatbox.scrollTop = chatbox.scrollHeight;
                         });
                     }
@@ -189,11 +189,11 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def get_chef_pid():
+def get_monitor_pid():
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:
             cmdline = proc.info.get('cmdline', [])
-            if cmdline and 'python' in cmdline[0] and 'chef.py' in ' '.join(cmdline):
+            if cmdline and 'python' in cmdline[0] and 'monitor.py' in ' '.join(cmdline):
                 return proc.info['pid']
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
@@ -223,15 +223,15 @@ def dashboard():
             with open(PENDING_KILLS_FILE, 'r') as f: pending_kills = json.load(f)
         except: pass
 
-    return render_template_string(HTML_TEMPLATE, tab='dashboard', is_running=bool(get_chef_pid()), state=state, pending_kills=pending_kills)
+    return render_template_string(HTML_TEMPLATE, tab='dashboard', is_running=bool(get_monitor_pid()), state=state, pending_kills=pending_kills)
 
 @app.route('/config')
 def config_page():
-    return render_template_string(HTML_TEMPLATE, tab='config', config=load_config(), is_running=bool(get_chef_pid()))
+    return render_template_string(HTML_TEMPLATE, tab='config', config=load_config(), is_running=bool(get_monitor_pid()))
 
 @app.route('/chat')
 def chat_page():
-    return render_template_string(HTML_TEMPLATE, tab='chat', is_running=bool(get_chef_pid()))
+    return render_template_string(HTML_TEMPLATE, tab='chat', is_running=bool(get_monitor_pid()))
 
 @app.route('/save', methods=['POST'])
 def save_config():
@@ -244,19 +244,19 @@ def save_config():
 
 @app.route('/start')
 def start():
-    if not get_chef_pid():
+    if not get_monitor_pid():
         env = os.environ.copy()
         load_dotenv(ENV_FILE)
         config = load_config()
         for k, v in config.items(): env[k] = v
-        chef_script = os.path.join(BASE_DIR, 'chef.py')
-        log_file = open(os.path.join(BASE_DIR, 'chef.log'), 'w')
+        chef_script = os.path.join(BASE_DIR, 'monitor.py')
+        log_file = open(os.path.join(BASE_DIR, 'monitor.log'), 'w')
         subprocess.Popen(['python', chef_script], env=env, stdout=log_file, stderr=subprocess.STDOUT)
     return redirect(url_for('dashboard'))
 
 @app.route('/stop')
 def stop():
-    pid = get_chef_pid()
+    pid = get_monitor_pid()
     if pid:
         try: psutil.Process(pid).terminate()
         except: pass
@@ -291,7 +291,7 @@ def api_chat():
         "Content-Type": "application/json"
     }
 
-    prompt = f"You are the Chef AI managing an autonomous workforce. Here is the current system state:\n{state_str}\n\nUser says: {user_msg}"
+    prompt = f"You are the Monitor AI overseeing an autonomous workforce dedicated entirely to earning ETH. Here is the current system state:\n{state_str}\n\nUser says: {user_msg}"
 
     payload = {
         "model": "meta/llama-3.1-8b-instruct",

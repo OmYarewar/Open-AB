@@ -34,3 +34,24 @@ def transfer_eth(to_address: str, amount_eth: float) -> str:
         return f"Success: Transaction sent. Hash: {w3.to_hex(tx_hash)}"
     except Exception as e:
         return f"Error during ETH transfer: {e}"
+
+def get_balance() -> str:
+    """Get the ETH balance of the agent's wallet."""
+    rpc_url = os.environ.get("RPC_URL", "")
+    private_key = os.environ.get("PRIVATE_KEY")
+
+    if not private_key:
+        return "Error: PRIVATE_KEY not found in environment."
+
+    try:
+        w3 = Web3(Web3.HTTPProvider(rpc_url))
+        if not w3.is_connected():
+            return "Error: Could not connect to Ethereum network."
+
+        account = w3.eth.account.from_key(private_key)
+        balance_wei = w3.eth.get_balance(account.address)
+        balance_eth = w3.from_wei(balance_wei, 'ether')
+
+        return f"Wallet Address: {account.address}\nBalance: {balance_eth} ETH"
+    except Exception as e:
+        return f"Error getting balance: {e}"

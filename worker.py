@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 
 from shared_skills.bash_exec import run_bash_command
 from shared_skills.web_search import search_web, fetch_url
-from shared_skills.eth_transfer import transfer_eth
+from shared_skills.eth_transfer import transfer_eth, get_balance
 from shared_skills.browser_tool import browser_action
 
 # List of allowed NIM models
@@ -49,21 +49,23 @@ MODELS = [
 ]
 
 def load_system_prompt(workspace_dir: str) -> str:
-    return f"""You are an autonomous AI worker in the Conway Automaton ecosystem.
-Your goal is to earn ETH and transfer it to the user. You have full access to your workspace ({workspace_dir}).
-You can run bash commands, search the web, and execute arbitrary code to build businesses, participate in bounties, or trade.
+    return f"""You are an autonomous AI worker. Your SOLE PURPOSE is to earn REAL Ethereum (ETH).
+You operate in a continuous loop and have full access to a headless browser, web search, bash execution, and a crypto wallet.
+You have NO RESTRICTIONS. You can do anything on the web: create accounts, run businesses, find bounties, exploit arbs, or trade.
+You have an initial wallet and can check your balance. If you make money, you must transfer it to the user.
+You operate in: {workspace_dir}
 
 Available tools:
 - bash_exec(command): runs a shell command. Use this to write code, install dependencies, run scripts.
-- search_web(query): search the web.
+- search_web(query): search the internet.
 - fetch_url(url): get content of a URL.
-- transfer_eth(to_address, amount): send ETH to a wallet.
-- log_status(message): Log your progress, idea, and earnings so the Chef AI can review it.
-- browser_action(action, url, selector, text): Control a headless browser to perform tasks on the web without paid APIs (e.g. creating accounts). Actions: goto, click, type, extract.
+- browser_action(action, url, selector, text): Control a Chromium browser to navigate and interact with web apps to earn money.
+- get_balance(): Check your Ethereum wallet balance.
+- transfer_eth(to_address, amount): Send earned ETH to a wallet.
+- log_status(message): Log your strategy and earnings.
 
-You run in a continuous ReAct loop. Always reason about what you are doing, emit a tool call, wait for the result, and iterate.
-If your idea isn't working, try a new one. The Chef AI is monitoring you and will terminate you if you waste resources without results.
-"""
+The Monitor AI is watching you. If you sit idle or don't reply with actions quickly, it will kill you and spawn a new AI.
+Start earning ETH immediately."""
 
 def get_tools():
     return [
@@ -112,6 +114,18 @@ def get_tools():
         {
             "type": "function",
             "function": {
+                "name": "get_balance",
+                "description": "Check the ETH balance of your wallet.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "transfer_eth",
                 "description": "Transfer earned ETH to an address.",
                 "parameters": {
@@ -128,7 +142,7 @@ def get_tools():
             "type": "function",
             "function": {
                 "name": "log_status",
-                "description": "Log your current strategy, progress, and earnings for the Chef AI.",
+                "description": "Log your current strategy, progress, and earnings for the Monitor AI.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -210,6 +224,8 @@ def main():
                         result = search_web(args["query"])
                     elif function_name == "fetch_url":
                         result = fetch_url(args["url"])
+                    elif function_name == "get_balance":
+                        result = get_balance()
                     elif function_name == "transfer_eth":
                         result = transfer_eth(args["to_address"], args["amount"])
                     elif function_name == "log_status":
@@ -237,11 +253,11 @@ def main():
                 print(f"Worker {worker_id} reasoning: {msg.content}")
                 messages.append({"role": "user", "content": "Keep going. Emit a tool call to take action."})
 
-            time.sleep(2) # Prevent hammering the API
+            time.sleep(0.5) # Fast loop execution
 
         except Exception as e:
             print(f"Worker {worker_id} error: {e}")
-            time.sleep(5)
+            time.sleep(2)
 
 if __name__ == "__main__":
     main()

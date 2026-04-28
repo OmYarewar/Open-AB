@@ -1,10 +1,10 @@
 # Automaton - Autonomous Multi-Agent AI System
 
-An autonomous, self-healing multi-agent AI system designed for Linux. It utilizes the NVIDIA NIM API to spawn a cluster of "Worker AIs", managed by a "Chef AI". The workers are capable of executing bash commands, searching the web, and making Ethereum transactions to generate and transfer ETH.
+An autonomous, self-healing multi-agent AI system designed for Linux. It utilizes the NVIDIA NIM API to spawn a cluster of "Worker AIs", managed by a "Monitor AI". The workers are capable of executing bash commands, searching the web, and making Ethereum transactions to generate and transfer ETH.
 
 ## Architecture
 
-- **Chef AI (`chef.py`)**: The orchestrator. It manages the pool of workers, evaluates their progress, and replaces unviable or underperforming agents with new ones initialized with fresh strategies.
+- **Monitor AI (`monitor.py`)**: The orchestrator. It manages the pool of workers, evaluates their progress, and replaces unviable or underperforming agents with new ones initialized with fresh strategies.
 - **Worker AI (`worker.py`)**: An isolated agent running a continuous ReAct loop. It connects to the NVIDIA NIM API and leverages available tools.
 - **Shared Skills (`shared_skills/`)**: A directory of tools accessible to the workers (Bash Execution, Web Search, ETH Transfer).
 
@@ -69,7 +69,7 @@ python cli.py status
 python cli.py stop
 ```
 
-*Logs are written to `chef.log` and worker outputs are tracked within their individual `workspaces/<id>/status.txt` files.*
+*Logs are written to `monitor.log` and worker outputs are tracked within their individual `workspaces/<id>/status.txt` files.*
 
 ## Safety Warning
 
